@@ -29,8 +29,8 @@ type Application struct {
 }
 
 func NewApplication() *Application {
-	mongoClient, mc := factory.NewMongoClient()
-	redisClient, rc := factory.NewRedisClient()
+	mongoClient, mc := factory.NewDBRepository()
+	redisClient, rc := factory.NewLocker()
 
 	return &Application{
 		e:           echo.New(),

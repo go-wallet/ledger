@@ -8,7 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func NewMongoClient() (*storage.MongoClient, *mongo.Client) {
+func NewDBRepository() (*storage.MongoClient, *mongo.Client) {
 	mc, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017/"))
 	if err != nil {
 		panic(err.Error())

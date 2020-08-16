@@ -8,7 +8,7 @@ import (
 	"github.com/vsmoraes/open-ledger/storage"
 )
 
-func NewRedisClient() (*storage.RedisClient, *redis.Client) {
+func NewLocker() (*storage.RedisClient, *redis.Client) {
 	rc := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
