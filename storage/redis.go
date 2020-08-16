@@ -12,26 +12,26 @@ import (
 )
 
 const KeyFormat = "lock-account-%s"
-const TTL = 10
+const TTL = 10 * time.Second
 
 type RedisClient struct {
-	redis     redis.Client
+	redis     *redis.Client
 	keyformat string
 	ttlms     time.Duration
 }
 
-func NewRedisClient(redis redis.Client) *RedisClient {
+func NewRedisClient(redis *redis.Client) *RedisClient {
 	return &RedisClient{
 		redis: redis,
 	}
 }
 
-func (cli *RedisClient) key(a *account.Account) string {
+func (cli *RedisClient) key(id account.ID) string {
 	if cli.keyformat != "" {
-		return fmt.Sprintf(cli.keyformat, a.ID)
+		return fmt.Sprintf(cli.keyformat, id)
 	}
 
-	return fmt.Sprintf(KeyFormat, a.ID)
+	return fmt.Sprintf(KeyFormat, id)
 }
 
 func (cli *RedisClient) ttl() time.Duration {
@@ -39,19 +39,24 @@ func (cli *RedisClient) ttl() time.Duration {
 		return cli.ttlms * time.Second
 	}
 
-	return TTL * time.Second
+	return TTL
 }
 
-func (cli *RedisClient) Lock(ctx context.Context, a *account.Account, key string) error {
-	if _, err := cli.redis.SetNX(ctx, cli.key(a), key, cli.ttl()).Result(); err != nil {
+func (cli *RedisClient) Lock(ctx context.Context, id account.ID, key string) error {
+	cmd, err := cli.redis.SetNX(ctx, cli.key(id), key, cli.ttl()).Result()
+	if err != nil {
 		return err
+	}
+
+	if !cmd {
+		return errors.New("this account is locked")
 	}
 
 	return nil
 }
 
-func (cli *RedisClient) Unlock(ctx context.Context, a *account.Account, key string) error {
-	lockedID, err := cli.redis.Get(ctx, cli.key(a)).Result()
+func (cli *RedisClient) Unlock(ctx context.Context, id account.ID, key string) error {
+	lockedID, err := cli.redis.Get(ctx, cli.key(id)).Result()
 	if err != nil {
 		return err
 	}
@@ -60,7 +65,7 @@ func (cli *RedisClient) Unlock(ctx context.Context, a *account.Account, key stri
 		return errors.New("unable to unlock. This lock belongs to someone else")
 	}
 
-	if _, err := cli.redis.Del(ctx, cli.key(a)).Result(); err != nil {
+	if _, err := cli.redis.Del(ctx, cli.key(id)).Result(); err != nil {
 		return err
 	}
 

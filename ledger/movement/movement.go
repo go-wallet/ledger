@@ -4,8 +4,6 @@ import (
 	"context"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
-
 	"github.com/vsmoraes/open-ledger/ledger/account"
 )
 
@@ -15,16 +13,23 @@ type FindableByAccount interface {
 }
 
 type Creatable interface {
-	Create(ctx context.Context, t *Movement) error
+	Create(ctx context.Context, m *Movement) error
+}
+
+type ID string
+
+func (id ID) String() string {
+	return string(id)
 }
 
 type Movement struct {
-	ID              uuid.UUID
-	Account         *account.Account
-	IsDebit         bool
-	Amount          int
-	PreviousBalance int
-	CreatedAt       time.Time
+	ID               ID
+	AccountID        account.ID
+	IsDebit          bool
+	Amount           int
+	PreviousMovement ID
+	PreviousBalance  int
+	CreatedAt        time.Time
 }
 
 func (m Movement) CurrentBalance() int {

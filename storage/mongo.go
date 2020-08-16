@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -18,10 +19,33 @@ type MongoClient struct {
 	collection *mongo.Collection
 }
 
-func New(collection *mongo.Collection) *MongoClient {
+type movementDocument struct {
+	ID               string `bson:"_id"`
+	AccountID        string `bson:"account_id"`
+	IsDebit          bool   `bson:"is_debit"`
+	Amount           int    `bson:"amount"`
+	PreviousMovement string `bson:"previous_movement"`
+	PreviousBalance  int    `bson:"previous_balance"`
+	CreatedAt        string `bson:"created_at"`
+}
+
+func NewMongoClient(collection *mongo.Collection) *MongoClient {
+	go initCollection(collection)
+
 	return &MongoClient{
 		collection: collection,
 	}
+}
+
+func initCollection(collection *mongo.Collection) {
+	collection.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.M{"account_id": 1, "previous_balance": 1},
+		Options: options.Index().SetUnique(true),
+	})
+
+	collection.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys: bson.M{"account_id": 1, "created_at": 0},
+	})
 }
 
 func (cli *MongoClient) All(ctx context.Context, id account.ID) ([]*movement.Movement, error) {
@@ -36,7 +60,7 @@ func (cli *MongoClient) All(ctx context.Context, id account.ID) ([]*movement.Mov
 	}
 	defer cursor.Close(timeout)
 
-	var transactions []*movement.Movement
+	transactions := make([]*movement.Movement, 0)
 	for cursor.Next(timeout) {
 		var t *movement.Movement
 		err := cursor.Decode(t)
@@ -53,22 +77,44 @@ func (cli *MongoClient) Last(ctx context.Context, id account.ID) (*movement.Move
 	timeout, cancel := context.WithTimeout(ctx, DefaultTimeout)
 	defer cancel()
 
-	result := &movement.Movement{}
-	findOptions := options.FindOne()
-	findOptions.SetSort(bson.D{{"created_at", -1}})
-	err := cli.collection.FindOne(timeout, bson.M{"id": id}, findOptions).Decode(&result)
-	if err != nil {
+	result := &movementDocument{}
+	findOptions := options.FindOne().SetSort(bson.D{{"created_at", -1}})
+	err := cli.collection.FindOne(timeout, bson.M{"account_id": id}, findOptions).Decode(&result)
+	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, err
 	}
 
-	return result, nil
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+
+	cAt, _ := time.Parse(time.RFC3339, result.CreatedAt)
+	return &movement.Movement{
+		ID:               movement.ID(result.ID),
+		AccountID:        account.ID(result.AccountID),
+		IsDebit:          result.IsDebit,
+		Amount:           result.Amount,
+		PreviousMovement: movement.ID(result.PreviousMovement),
+		PreviousBalance:  result.PreviousBalance,
+		CreatedAt:        cAt,
+	}, nil
 }
 
-func (cli *MongoClient) Create(ctx context.Context, t *movement.Movement) error {
+func (cli *MongoClient) Create(ctx context.Context, m *movement.Movement) error {
 	timeout, cancel := context.WithTimeout(ctx, DefaultTimeout)
 	defer cancel()
 
-	_, err := cli.collection.InsertOne(timeout, t)
+	doc := movementDocument{
+		ID:               m.ID.String(),
+		AccountID:        string(m.AccountID),
+		IsDebit:          m.IsDebit,
+		Amount:           m.Amount,
+		PreviousMovement: m.PreviousMovement.String(),
+		PreviousBalance:  m.PreviousBalance,
+		CreatedAt:        m.CreatedAt.Format(time.RFC3339),
+	}
+
+	_, err := cli.collection.InsertOne(timeout, doc)
 
 	return err
 }

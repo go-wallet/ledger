@@ -1,12 +1,10 @@
-package main
+package application
 
 import (
 	"net/http"
 	"time"
 
 	"github.com/labstack/echo"
-	uuid "github.com/satori/go.uuid"
-
 	"github.com/vsmoraes/open-ledger/ledger"
 	"github.com/vsmoraes/open-ledger/ledger/account"
 	"github.com/vsmoraes/open-ledger/ledger/movement"
@@ -54,10 +52,8 @@ func createMovementController(ledger *ledger.Ledger) echo.HandlerFunc {
 		}
 
 		entry := movement.Movement{
-			ID: uuid.NewV4(),
-			Account: &account.Account{
-				ID: account.ID(req.AccountID),
-			},
+			ID:        movement.ID(req.ID),
+			AccountID: account.ID(req.AccountID),
 			IsDebit:   req.IsDebit,
 			Amount:    req.Amount,
 			CreatedAt: time.Now(),

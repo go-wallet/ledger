@@ -23,23 +23,36 @@ func New(al account.Lockable, tf movement.FindableByAccount, tc movement.Creatab
 }
 
 func (l *Ledger) AddEntry(ctx context.Context, m movement.Movement) error {
-	defer l.accountLocker.Unlock(ctx, m.Account, m.ID.String())
+	defer l.accountLocker.Unlock(ctx, m.AccountID, m.ID.String())
 
-	if err := l.accountLocker.Lock(ctx, m.Account, m.ID.String()); err != nil {
+	if err := l.accountLocker.Lock(ctx, m.AccountID, m.ID.String()); err != nil {
 		return err
 	}
 
-	lst, err := l.movementFinder.Last(ctx, m.Account.ID)
+	lst, err := l.movementFinder.Last(ctx, m.AccountID)
 	if err != nil {
 		return err
 	}
 
-	if m.IsDebit && lst.CurrentBalance() < m.Amount {
-		return errors.New("current balance is not available to complete this operation")
+	if err = l.validateEntry(&m, lst); err != nil {
+		return err
+	}
+
+	if lst != nil {
+		m.PreviousMovement = lst.ID
+		m.PreviousBalance = lst.CurrentBalance()
 	}
 
 	if err = l.movementCreator.Create(ctx, &m); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (l *Ledger) validateEntry(newEntry, lastEntry *movement.Movement) error {
+	if newEntry.IsDebit && (lastEntry == nil || lastEntry.CurrentBalance() < newEntry.Amount) {
+		return errors.New("current balance is not enough to complete this operation")
 	}
 
 	return nil
