@@ -7,12 +7,12 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo"
-	"github.com/vsmoraes/open-ledger/factory"
-	"github.com/vsmoraes/open-ledger/storage"
 	"go.mongodb.org/mongo-driver/mongo"
 
+	"github.com/vsmoraes/open-ledger/factory"
 	"github.com/vsmoraes/open-ledger/ledger"
 	"github.com/vsmoraes/open-ledger/ledger/movement"
+	"github.com/vsmoraes/open-ledger/storage"
 )
 
 type Application struct {

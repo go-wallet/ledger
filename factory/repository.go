@@ -3,9 +3,10 @@ package factory
 import (
 	"context"
 
-	"github.com/vsmoraes/open-ledger/storage"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"github.com/vsmoraes/open-ledger/storage"
 )
 
 func NewDBRepository() (*storage.MongoClient, *mongo.Client) {
