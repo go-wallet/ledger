@@ -1,0 +1,31 @@
+name: Open Ledger CI
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup environment
+        run: |
+          cp .env.example .env
+          docker-compose up -d
+
+      - name: Run tests
+        run: |
+          go test -v -race ./...
+
+      - name: Report coverage to code climate
+        run: |
+          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+          chmod +x ./cc-test-reporter
+          ./cc-test-reporter before-build
+          go test -v -race -coverprofile=./c.out ./...
+          export GIT_REPO=github.com/vsmoraes/open-ledger
+          export NEW_PATH=$(pwd)
+          sed -i "s|$GIT_REPO|$NEW_PATH|g" c.out
+          ./cc-test-reporter after-build --exit-code $?
+        env:
+          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
