@@ -60,7 +60,7 @@ func createMovementController(ledger *ledger.Ledger) echo.HandlerFunc {
 			CreatedAt: time.Now(),
 		}
 
-		if err := ledger.AddEntry(ctx.Request().Context(), entry); err != nil {
+		if err := ledger.CreateMovement(ctx.Request().Context(), entry); err != nil {
 			return ctx.JSON(http.StatusInternalServerError, err.Error())
 		}
 
