@@ -8,6 +8,8 @@ import (
 	"github.com/vsmoraes/open-ledger/ledger/movement"
 )
 
+var ErrBalanceNotEnough = errors.New("current balance is not enough to complete this operation")
+
 type Ledger struct {
 	accountLocker   account.Lockable
 	movementFinder  movement.FindableByAccount
@@ -22,7 +24,7 @@ func New(al account.Lockable, tf movement.FindableByAccount, tc movement.Creatab
 	}
 }
 
-func (l *Ledger) AddEntry(ctx context.Context, m movement.Movement) error {
+func (l *Ledger) CreateMovement(ctx context.Context, m movement.Movement) error {
 	defer l.accountLocker.Unlock(ctx, m.AccountID, m.ID.String())
 
 	if err := l.accountLocker.Lock(ctx, m.AccountID, m.ID.String()); err != nil {
@@ -52,7 +54,7 @@ func (l *Ledger) AddEntry(ctx context.Context, m movement.Movement) error {
 
 func (l *Ledger) validateEntry(newEntry, lastEntry *movement.Movement) error {
 	if newEntry.IsDebit && (lastEntry == nil || lastEntry.CurrentBalance() < newEntry.Amount) {
-		return errors.New("current balance is not enough to complete this operation")
+		return ErrBalanceNotEnough
 	}
 
 	return nil
