@@ -50,6 +50,7 @@ func NewApplication() *Application {
 func (app *Application) Start(port string) {
 	defer app.stop()
 
+	app.e.HideBanner = true
 	app.e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Service is up and running")
 	})

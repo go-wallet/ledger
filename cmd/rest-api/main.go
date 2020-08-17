@@ -2,14 +2,10 @@ package main
 
 import (
 	"github.com/vsmoraes/open-ledger/cmd/rest-api/application"
-	"github.com/vsmoraes/open-ledger/ledger"
-	"github.com/vsmoraes/open-ledger/ledger/movement"
+	"github.com/vsmoraes/open-ledger/config"
 )
-
-var mf movement.FindableByAccount
-var l *ledger.Ledger
 
 func main() {
 	app := application.NewApplication()
-	app.Start(":8000")
+	app.Start(config.Config().RestAPI.Port)
 }
