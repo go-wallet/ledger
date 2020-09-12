@@ -6,10 +6,10 @@ import (
 
 	"github.com/labstack/echo"
 
-	"github.com/vsmoraes/open-ledger/cmd/rest-api/protocol"
 	"github.com/vsmoraes/open-ledger/ledger"
 	"github.com/vsmoraes/open-ledger/ledger/account"
 	"github.com/vsmoraes/open-ledger/ledger/movement"
+	protocol "github.com/vsmoraes/open-ledger/protocol/http"
 )
 
 func findMomentsController(mf movement.FindableByAccount) echo.HandlerFunc {

@@ -10,8 +10,8 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"github.com/vsmoraes/open-ledger/cmd/rest-api/protocol"
 	"github.com/vsmoraes/open-ledger/config"
+	protocol "github.com/vsmoraes/open-ledger/protocol/http"
 )
 
 type ControllersTestSuite struct {
