@@ -48,13 +48,13 @@ func initCollection(collection *mongo.Collection) {
 	})
 }
 
-func (cli *MongoClient) All(ctx context.Context, id account.ID) ([]*movement.Movement, error) {
+func (cli *MongoClient) All(ctx context.Context, aID account.ID) ([]*movement.Movement, error) {
 	timeout, cancel := context.WithTimeout(ctx, DefaultTimeout)
 	defer cancel()
 
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{{"created_at", 1}})
-	cursor, err := cli.collection.Find(timeout, bson.M{"id": id}, findOptions)
+	cursor, err := cli.collection.Find(timeout, bson.M{"account_id": aID}, findOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -62,13 +62,22 @@ func (cli *MongoClient) All(ctx context.Context, id account.ID) ([]*movement.Mov
 
 	transactions := make([]*movement.Movement, 0)
 	for cursor.Next(timeout) {
-		var t *movement.Movement
+		t := &movementDocument{}
 		err := cursor.Decode(t)
 		if err != nil {
 			return nil, err
 		}
 
-		transactions = append(transactions, t)
+		cAt, _ := time.Parse(time.RFC3339, t.CreatedAt)
+		transactions = append(transactions, &movement.Movement{
+			ID:               movement.ID(t.ID),
+			AccountID:        account.ID(t.AccountID),
+			IsDebit:          t.IsDebit,
+			Amount:           t.Amount,
+			PreviousMovement: movement.ID(t.PreviousMovement),
+			PreviousBalance:  t.PreviousBalance,
+			CreatedAt:        cAt,
+		})
 	}
 	return transactions, nil
 }

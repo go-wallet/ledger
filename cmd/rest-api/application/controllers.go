@@ -9,22 +9,12 @@ import (
 	"github.com/vsmoraes/open-ledger/ledger"
 	"github.com/vsmoraes/open-ledger/ledger/account"
 	"github.com/vsmoraes/open-ledger/ledger/movement"
+	protocol "github.com/vsmoraes/open-ledger/protocol/http"
 )
-
-type FindMovementsRequest struct {
-	AccountID string `query:"account_id"`
-}
-
-type CreateMovementRequest struct {
-	ID        string `json:"id"`
-	AccountID string `json:"account_id"`
-	IsDebit   bool   `json:"is_debit"`
-	Amount    int    `json:"amount"`
-}
 
 func findMomentsController(mf movement.FindableByAccount) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
-		req := &FindMovementsRequest{}
+		req := &protocol.FindMovementsRequest{}
 		if err := ctx.Bind(req); err != nil {
 			return ctx.JSON(http.StatusBadRequest, err.Error())
 		}
@@ -41,13 +31,19 @@ func findMomentsController(mf movement.FindableByAccount) echo.HandlerFunc {
 			return ctx.JSON(http.StatusNotFound, err.Error())
 		}
 
-		return ctx.JSON(http.StatusOK, movements)
+		result := &protocol.GetMovementsResponse{
+			Data: make([]*protocol.GetMovementResponse, 0),
+		}
+		for _, mov := range movements {
+			result.Data = append(result.Data, protocol.ResponseFromMovement(mov))
+		}
+		return ctx.JSON(http.StatusOK, result)
 	}
 }
 
 func createMovementController(ledger *ledger.Ledger) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
-		req := &CreateMovementRequest{}
+		req := &protocol.CreateMovementRequest{}
 		if err := ctx.Bind(req); err != nil {
 			return ctx.JSON(http.StatusUnprocessableEntity, err.Error())
 		}
