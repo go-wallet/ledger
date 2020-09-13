@@ -66,7 +66,6 @@ func (cli *RedisClient) Lock(ctx context.Context, id account.ID, key string) err
 }
 
 func (cli *RedisClient) Unlock(ctx context.Context, id account.ID, key string) error {
-	return nil
 	lockedID, err := cli.redis.Get(ctx, cli.key(id)).Result()
 	if err != nil {
 		return err
