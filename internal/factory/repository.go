@@ -6,8 +6,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/vsmoraes/open-ledger/config"
-	"github.com/vsmoraes/open-ledger/storage"
+	"github.com/vsmoraes/open-ledger/internal/config"
+	"github.com/vsmoraes/open-ledger/internal/storage"
 )
 
 func NewDBRepository() (*storage.MongoClient, *mongo.Client) {

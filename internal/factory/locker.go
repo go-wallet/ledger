@@ -5,9 +5,9 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/vsmoraes/open-ledger/config"
+	"github.com/vsmoraes/open-ledger/internal/config"
+	"github.com/vsmoraes/open-ledger/internal/storage"
 	"github.com/vsmoraes/open-ledger/ledger/account"
-	"github.com/vsmoraes/open-ledger/storage"
 )
 
 func NewLocker() *account.Locker {

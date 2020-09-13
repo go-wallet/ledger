@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
+	"path"
+	"runtime"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -39,7 +41,10 @@ func Config() *config {
 	if configInstance == nil {
 		env := os.Getenv("APP_ENV")
 		if env != "production" {
-			godotenv.Load(".env")
+			_, b, _, _ := runtime.Caller(0)
+			dir := path.Join(path.Dir(b))
+
+			godotenv.Load(fmt.Sprintf("%s/../../.env", dir))
 		}
 
 		port := fmt.Sprintf(":%s", os.Getenv("APP_API_PORT"))

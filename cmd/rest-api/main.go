@@ -6,7 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/vsmoraes/open-ledger/cmd/rest-api/application"
-	"github.com/vsmoraes/open-ledger/config"
+	"github.com/vsmoraes/open-ledger/internal/config"
 )
 
 func init() {
