@@ -16,14 +16,14 @@ jobs:
 
       - name: Run tests
         run: |
-          APP_ENV=test go test -v -race ./...
+          APP_ENV=test go test -v ./...
 
       - name: Report coverage to code climate
         run: |
           curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
           chmod +x ./cc-test-reporter
           ./cc-test-reporter before-build
-          APP_ENV=test go test -v -race -coverprofile=./c.out ./...
+          APP_ENV=test go test -v -coverprofile=./c.out ./...
           export GIT_REPO=github.com/vsmoraes/open-ledger
           export NEW_PATH=$(pwd)
           sed -i "s|$GIT_REPO|$NEW_PATH|g" c.out
