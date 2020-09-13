@@ -5,7 +5,11 @@ import (
 	"errors"
 	"math"
 	"sync"
+	"time"
 )
+
+const Retries = 3
+const WaitFor = 1 * time.Second
 
 var ErrNotEnoughQuorum = errors.New("not enough quorum for locking")
 
@@ -20,6 +24,8 @@ type LockerClient struct {
 
 type Locker struct {
 	clients []*LockerClient
+	retries int
+	waitFor time.Duration
 }
 
 func NewLockerClient(l Lockable) *LockerClient {
@@ -29,10 +35,61 @@ func NewLockerClient(l Lockable) *LockerClient {
 }
 
 func NewLocker(clis []*LockerClient) *Locker {
-	return &Locker{clients: clis}
+	l := &Locker{clients: clis}
+
+	return l.WithRetries(Retries).WithWaitFor(WaitFor)
+}
+
+func (l *Locker) WithRetries(retries int) *Locker {
+	return &Locker{
+		clients: l.clients,
+		retries: retries,
+		waitFor: l.waitFor,
+	}
+}
+
+func (l *Locker) WithWaitFor(waitFor time.Duration) *Locker {
+	return &Locker{
+		clients: l.clients,
+		retries: l.retries,
+		waitFor: waitFor,
+	}
 }
 
 func (l *Locker) Lock(ctx context.Context, id ID, key string) error {
+	var err error
+	for c := 1; c < l.retries; c++ {
+		err = l.doLock(ctx, id, key)
+		if err == nil {
+			return nil
+		}
+
+		time.Sleep(l.waitFor)
+	}
+
+	return err
+}
+
+func (l *Locker) Unlock(ctx context.Context, id ID, key string) error {
+	buf := len(l.clients)
+	wg := sync.WaitGroup{}
+	wg.Add(buf)
+
+	unlockFn := func(l Lockable) {
+		defer wg.Done()
+		l.Unlock(ctx, id, key)
+	}
+
+	for i := range l.clients {
+		go unlockFn(l.clients[i].locker)
+	}
+
+	wg.Wait()
+
+	return nil
+}
+
+func (l *Locker) doLock(ctx context.Context, id ID, key string) error {
 	buf := len(l.clients)
 	c := float64(buf)
 	quorum := int(math.Min(c, c/2+1))
@@ -59,12 +116,4 @@ func (l *Locker) Lock(ctx context.Context, id ID, key string) error {
 
 	close(locks)
 	return ErrNotEnoughQuorum
-}
-
-func (l *Locker) Unlock(ctx context.Context, id ID, key string) error {
-	for _, cli := range l.clients {
-		cli.locker.Unlock(ctx, id, key)
-	}
-
-	return nil
 }
