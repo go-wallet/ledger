@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/vsmoraes/open-ledger/ledger/account"
 )
@@ -16,8 +17,8 @@ const TTL = 10 * time.Second
 
 type RedisClient struct {
 	redis     *redis.Client
-	keyformat string
-	ttlms     time.Duration
+	keyFormat string
+	ttlMs     time.Duration
 }
 
 func NewRedisClient(redis *redis.Client) *RedisClient {
@@ -26,36 +27,46 @@ func NewRedisClient(redis *redis.Client) *RedisClient {
 	}
 }
 
-func (cli *RedisClient) key(id account.ID) string {
-	if cli.keyformat != "" {
-		return fmt.Sprintf(cli.keyformat, id)
-	}
-
-	return fmt.Sprintf(KeyFormat, id)
-}
-
-func (cli *RedisClient) ttl() time.Duration {
-	if cli.ttlms != 0 {
-		return cli.ttlms * time.Second
-	}
-
-	return TTL
-}
-
 func (cli *RedisClient) Lock(ctx context.Context, id account.ID, key string) error {
+	log.WithFields(log.Fields{
+		"id":  id,
+		"key": key,
+	}).Debug("Trying to lock")
+
 	cmd, err := cli.redis.SetNX(ctx, cli.key(id), key, cli.ttl()).Result()
 	if err != nil {
+		log.WithFields(log.Fields{
+			"id":  id,
+			"key": key,
+			"cmd": cmd,
+		}).
+			WithError(err).
+			Error("Error locking account")
+
 		return err
 	}
 
 	if !cmd {
+		log.WithFields(log.Fields{
+			"id":  id,
+			"key": key,
+			"cmd": cmd,
+		}).Debug("Account already locked")
+
 		return errors.New("this account is locked")
 	}
+
+	log.WithFields(log.Fields{
+		"id":  id,
+		"key": key,
+		"cmd": cmd,
+	}).Debug("Locking successful")
 
 	return nil
 }
 
 func (cli *RedisClient) Unlock(ctx context.Context, id account.ID, key string) error {
+	return nil
 	lockedID, err := cli.redis.Get(ctx, cli.key(id)).Result()
 	if err != nil {
 		return err
@@ -70,4 +81,20 @@ func (cli *RedisClient) Unlock(ctx context.Context, id account.ID, key string) e
 	}
 
 	return nil
+}
+
+func (cli *RedisClient) key(id account.ID) string {
+	if cli.keyFormat != "" {
+		return fmt.Sprintf(cli.keyFormat, id)
+	}
+
+	return fmt.Sprintf(KeyFormat, id)
+}
+
+func (cli *RedisClient) ttl() time.Duration {
+	if cli.ttlMs != 0 {
+		return cli.ttlMs * time.Second
+	}
+
+	return TTL
 }

@@ -11,12 +11,12 @@ import (
 var ErrBalanceNotEnough = errors.New("current balance is not enough to complete this operation")
 
 type Ledger struct {
-	accountLocker   account.Lockable
+	accountLocker   *account.Locker
 	movementFinder  movement.FindableByAccount
 	movementCreator movement.Creatable
 }
 
-func New(al account.Lockable, tf movement.FindableByAccount, tc movement.Creatable) *Ledger {
+func New(al *account.Locker, tf movement.FindableByAccount, tc movement.Creatable) *Ledger {
 	return &Ledger{
 		accountLocker:   al,
 		movementFinder:  tf,

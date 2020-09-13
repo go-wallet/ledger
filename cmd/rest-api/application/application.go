@@ -2,27 +2,26 @@ package application
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo"
+	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"github.com/vsmoraes/open-ledger/factory"
+	"github.com/vsmoraes/open-ledger/internal/factory"
+	"github.com/vsmoraes/open-ledger/internal/storage"
 	"github.com/vsmoraes/open-ledger/ledger"
+	"github.com/vsmoraes/open-ledger/ledger/account"
 	"github.com/vsmoraes/open-ledger/ledger/movement"
-	"github.com/vsmoraes/open-ledger/storage"
 )
 
 type Application struct {
 	e *echo.Echo
 
 	mc *mongo.Client
-	rc *redis.Client
 
 	mongoClient *storage.MongoClient
-	redisClient *storage.RedisClient
+	locker      *account.Locker
 
 	mf movement.FindableByAccount
 	l  *ledger.Ledger
@@ -30,17 +29,16 @@ type Application struct {
 
 func NewApplication() *Application {
 	mongoClient, mc := factory.NewDBRepository()
-	redisClient, rc := factory.NewLocker()
+	locker := factory.NewLocker()
 
 	return &Application{
 		e:           echo.New(),
 		mc:          mc,
-		rc:          rc,
 		mongoClient: mongoClient,
-		redisClient: redisClient,
+		locker:      locker,
 		mf:          mongoClient,
 		l: ledger.New(
-			redisClient,
+			locker,
 			mongoClient,
 			mongoClient,
 		),
@@ -59,10 +57,13 @@ func (app *Application) Start(port string) {
 	rg.POST("", createMovementController(app.l))
 	rg.GET("", findMomentsController(app.mf))
 
+	log.WithFields(log.Fields{
+		"port": port,
+	}).Info("Starting HTTP server")
 	app.e.Logger.Fatal(app.e.Start(port))
 }
 
 func (app *Application) stop() {
-	fmt.Println("disconnecting...")
+	log.Info("Disconnecting...")
 	app.mc.Disconnect(context.Background())
 }

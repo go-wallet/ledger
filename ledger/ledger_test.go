@@ -16,7 +16,7 @@ import (
 	"github.com/vsmoraes/open-ledger/ledger/movement"
 )
 
-type asserts func(t *testing.T, al *mock.AccountLocker, mf *mock.MovementFinder, mc *mock.MovementCreator, result error)
+type asserts func(t *testing.T, al *mock.LockerClient, mf *mock.MovementFinder, mc *mock.MovementCreator, result error)
 
 type LedgerTestSuite struct {
 	suite.Suite
@@ -47,7 +47,7 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 			lockReturn:   nil,
 			unlockReturn: nil,
 			createError:  nil,
-			asserts: func(t *testing.T, al *mock.AccountLocker, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
+			asserts: func(t *testing.T, al *mock.LockerClient, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
 				assert.Nil(t, result)
 				al.AssertExpectations(t)
 				mf.AssertExpectations(t)
@@ -77,7 +77,7 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 			lockReturn:   nil,
 			unlockReturn: nil,
 			createError:  nil,
-			asserts: func(t *testing.T, al *mock.AccountLocker, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
+			asserts: func(t *testing.T, al *mock.LockerClient, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
 				assert.EqualError(t, result, ErrBalanceNotEnough.Error())
 				al.AssertExpectations(t)
 				mf.AssertExpectations(t)
@@ -99,7 +99,7 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 			lockReturn:   nil,
 			unlockReturn: nil,
 			createError:  nil,
-			asserts: func(t *testing.T, al *mock.AccountLocker, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
+			asserts: func(t *testing.T, al *mock.LockerClient, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
 				assert.EqualError(t, result, ErrBalanceNotEnough.Error())
 				al.AssertExpectations(t)
 				mf.AssertExpectations(t)
@@ -121,8 +121,8 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 			lockReturn:   errors.New("locking is not possible"),
 			unlockReturn: nil,
 			createError:  nil,
-			asserts: func(t *testing.T, al *mock.AccountLocker, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
-				assert.EqualError(t, result, "locking is not possible")
+			asserts: func(t *testing.T, al *mock.LockerClient, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
+				assert.EqualError(t, result, account.ErrNotEnoughQuorum.Error())
 				al.AssertExpectations(t)
 				mf.AssertNumberOfCalls(t, "Last", 0)
 				mc.AssertNumberOfCalls(t, "Create", 0)
@@ -143,7 +143,7 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 			lockReturn:   nil,
 			unlockReturn: nil,
 			createError:  nil,
-			asserts: func(t *testing.T, al *mock.AccountLocker, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
+			asserts: func(t *testing.T, al *mock.LockerClient, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
 				assert.EqualError(t, result, "database error")
 				al.AssertExpectations(t)
 				mf.AssertExpectations(t)
@@ -165,7 +165,7 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 			lockReturn:   nil,
 			unlockReturn: nil,
 			createError:  errors.New("database error"),
-			asserts: func(t *testing.T, al *mock.AccountLocker, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
+			asserts: func(t *testing.T, al *mock.LockerClient, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
 				assert.EqualError(t, result, "database error")
 				al.AssertExpectations(t)
 				mf.AssertExpectations(t)
@@ -175,9 +175,9 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 	}
 
 	for _, test := range tests {
-		al := &mock.AccountLocker{}
-		al.On("Lock", test.accountID).Return(test.lockReturn)
-		al.On("Unlock", test.accountID).Return(test.unlockReturn).Times(1)
+		lc := &mock.LockerClient{}
+		lc.On("Lock", test.accountID).Return(test.lockReturn)
+		lc.On("Unlock", test.accountID).Return(test.unlockReturn).Times(1)
 
 		mf := &mock.MovementFinder{}
 		mf.On("Last", test.accountID).Return(test.lstMov, test.lstError)
@@ -185,12 +185,16 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 		mc := &mock.MovementCreator{}
 		mc.On("Create", testifyMock.Anything).Return(test.createError)
 
+		clis := make([]*account.LockerClient, 0)
+		clis = append(clis, account.NewLockerClient(lc))
+		al := account.NewLocker(clis)
+
 		l := New(al, mf, mc)
 		result := l.CreateMovement(context.Background(), *test.newMov)
-		test.asserts(lts.T(), al, mf, mc, result)
+		test.asserts(lts.T(), lc, mf, mc, result)
 
 		// Unlock should ALWAYS run!
-		al.AssertNumberOfCalls(lts.T(), "Unlock", 1)
+		lc.AssertNumberOfCalls(lts.T(), "Unlock", 1)
 	}
 }
 

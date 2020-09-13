@@ -10,7 +10,8 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-	"github.com/vsmoraes/open-ledger/config"
+
+	"github.com/vsmoraes/open-ledger/internal/config"
 	protocol "github.com/vsmoraes/open-ledger/protocol/http"
 )
 

@@ -16,16 +16,14 @@ jobs:
 
       - name: Run tests
         run: |
-          export $(egrep -v '^#' .env.example | xargs)
-          go test -v -race ./...
+          APP_ENV=test go test -v -race ./...
 
       - name: Report coverage to code climate
         run: |
-          export $(egrep -v '^#' .env.example | xargs)
           curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
           chmod +x ./cc-test-reporter
           ./cc-test-reporter before-build
-          godotenv -f .env.example go test -v -race -coverprofile=./c.out ./...
+          APP_ENV=test go test -v -race -coverprofile=./c.out ./...
           export GIT_REPO=github.com/vsmoraes/open-ledger
           export NEW_PATH=$(pwd)
           sed -i "s|$GIT_REPO|$NEW_PATH|g" c.out
