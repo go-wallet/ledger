@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -17,9 +18,13 @@ type mongoConfig struct {
 	MovementsCollection string
 }
 
-type redisConfig struct {
+type redisInstance struct {
 	Host     string
 	Password string
+}
+
+type redisConfig struct {
+	Instances []redisInstance
 }
 
 type config struct {
@@ -37,23 +42,42 @@ func Config() *config {
 			godotenv.Load(".env")
 		}
 
+		port := fmt.Sprintf(":%s", os.Getenv("APP_API_PORT"))
+		mongoURI := os.Getenv("APP_MONGODB_URI")
+		redisHosts := os.Getenv("APP_REDIS_HOSTS")
+		redisPasswords := os.Getenv("APP_REDIS_PASSWORDS")
+
 		configInstance = &config{
 			RestAPI: &restAppConfig{
-				Port: fmt.Sprintf(":%s", os.Getenv("APP_API_PORT")),
+				Port: port,
 			},
 
 			MongoDB: &mongoConfig{
-				URI:                 os.Getenv("APP_MONGODB_URI"),
+				URI:                 mongoURI,
 				Database:            "open-ledger",
 				MovementsCollection: "movements",
 			},
 
 			Redis: &redisConfig{
-				Host:     os.Getenv("APP_REDIS_HOST"),
-				Password: os.Getenv("APP_REDIS_PASSWORD"),
+				Instances: parseRegisConfig(redisHosts, redisPasswords),
 			},
 		}
 	}
 
 	return configInstance
+}
+
+func parseRegisConfig(hosts, passwords string) []redisInstance {
+	hs := strings.Split(hosts, ",")
+	ps := strings.Split(passwords, ",")
+
+	instances := make([]redisInstance, 0)
+	for i, host := range hs {
+		instances = append(instances, redisInstance{
+			Host:     host,
+			Password: ps[i],
+		})
+	}
+
+	return instances
 }

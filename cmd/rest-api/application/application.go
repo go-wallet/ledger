@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/vsmoraes/open-ledger/factory"
 	"github.com/vsmoraes/open-ledger/ledger"
+	"github.com/vsmoraes/open-ledger/ledger/account"
 	"github.com/vsmoraes/open-ledger/ledger/movement"
 	"github.com/vsmoraes/open-ledger/storage"
 )
@@ -19,10 +19,9 @@ type Application struct {
 	e *echo.Echo
 
 	mc *mongo.Client
-	rc *redis.Client
 
 	mongoClient *storage.MongoClient
-	redisClient *storage.RedisClient
+	locker      *account.Locker
 
 	mf movement.FindableByAccount
 	l  *ledger.Ledger
@@ -30,17 +29,16 @@ type Application struct {
 
 func NewApplication() *Application {
 	mongoClient, mc := factory.NewDBRepository()
-	redisClient, rc := factory.NewLocker()
+	locker := factory.NewLocker()
 
 	return &Application{
 		e:           echo.New(),
 		mc:          mc,
-		rc:          rc,
 		mongoClient: mongoClient,
-		redisClient: redisClient,
+		locker:      locker,
 		mf:          mongoClient,
 		l: ledger.New(
-			redisClient,
+			locker,
 			mongoClient,
 			mongoClient,
 		),
