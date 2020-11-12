@@ -2,7 +2,6 @@ package account
 
 import (
 	"context"
-	"errors"
 	"math"
 	"sync"
 	"time"
@@ -10,8 +9,6 @@ import (
 
 const Retries = 3
 const WaitFor = 1 * time.Second
-
-var ErrNotEnoughQuorum = errors.New("not enough quorum for locking")
 
 type Lockable interface {
 	Lock(ctx context.Context, id ID, key string) error
@@ -115,5 +112,5 @@ func (l *Locker) doLock(ctx context.Context, id ID, key string) error {
 	}
 
 	close(locks)
-	return ErrNotEnoughQuorum
+	return NewNotEnoughQuorumError(len(locks), quorum)
 }

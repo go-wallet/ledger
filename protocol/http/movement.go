@@ -31,6 +31,10 @@ type GetMovementsResponse struct {
 	Data []*GetMovementResponse `json:"data"`
 }
 
+type Error struct {
+	Message string `json:"message"`
+}
+
 func ResponseFromMovement(mov *movement.Movement) *GetMovementResponse {
 	return &GetMovementResponse{
 		ID:               mov.ID.String(),

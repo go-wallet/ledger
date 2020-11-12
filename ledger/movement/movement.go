@@ -7,6 +7,10 @@ import (
 	"github.com/vsmoraes/open-ledger/ledger/account"
 )
 
+type Fetchable interface {
+	Fetch(ctx context.Context, id ID) (*Movement, error)
+}
+
 type FindableByAccount interface {
 	All(ctx context.Context, id account.ID) ([]*Movement, error)
 	Last(ctx context.Context, id account.ID) (*Movement, error)

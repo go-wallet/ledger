@@ -37,3 +37,13 @@ func (mc *MovementCreator) Create(ctx context.Context, m *movement.Movement) err
 
 	return args.Error(0)
 }
+
+type MovementFetcher struct {
+	mock.Mock
+}
+
+func (mf *MovementFetcher) Fetch(ctx context.Context, id movement.ID) (*movement.Movement, error) {
+	args := mf.Called(id)
+
+	return args.Get(0).(*movement.Movement), args.Error(1)
+}

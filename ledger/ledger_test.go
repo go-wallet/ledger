@@ -26,6 +26,7 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 	tests := []struct {
 		accountID    account.ID
 		newMov       *movement.Movement
+		conflict     *movement.Movement
 		lstMov       *movement.Movement
 		lstError     error
 		lockReturn   error
@@ -42,6 +43,7 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 				IsDebit:   false,
 				Amount:    1000,
 			},
+			conflict:     nil,
 			lstMov:       nil,
 			lstError:     nil,
 			lockReturn:   nil,
@@ -64,6 +66,7 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 				IsDebit:   true,
 				Amount:    1000,
 			},
+			conflict: nil,
 			lstMov: &movement.Movement{
 				ID:               movement.ID(uuid.NewV4().String()),
 				AccountID:        "123-123-123",
@@ -78,7 +81,7 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 			unlockReturn: nil,
 			createError:  nil,
 			asserts: func(t *testing.T, al *mock.LockerClient, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
-				assert.EqualError(t, result, ErrBalanceNotEnough.Error())
+				assert.EqualError(t, result, NewBalanceNotEnoughError(0, 0).Error())
 				al.AssertExpectations(t)
 				mf.AssertExpectations(t)
 				mc.AssertNumberOfCalls(t, "Create", 0)
@@ -94,13 +97,14 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 				IsDebit:   true,
 				Amount:    1000,
 			},
+			conflict:     nil,
 			lstMov:       nil,
 			lstError:     nil,
 			lockReturn:   nil,
 			unlockReturn: nil,
 			createError:  nil,
 			asserts: func(t *testing.T, al *mock.LockerClient, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
-				assert.EqualError(t, result, ErrBalanceNotEnough.Error())
+				assert.EqualError(t, result, NewBalanceNotEnoughError(0, 0).Error())
 				al.AssertExpectations(t)
 				mf.AssertExpectations(t)
 				mc.AssertNumberOfCalls(t, "Create", 0)
@@ -116,13 +120,14 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 				IsDebit:   false,
 				Amount:    1000,
 			},
+			conflict:     nil,
 			lstMov:       nil,
 			lstError:     nil,
 			lockReturn:   errors.New("locking is not possible"),
 			unlockReturn: nil,
 			createError:  nil,
 			asserts: func(t *testing.T, al *mock.LockerClient, mf *mock.MovementFinder, mc *mock.MovementCreator, result error) {
-				assert.EqualError(t, result, account.ErrNotEnoughQuorum.Error())
+				assert.EqualError(t, result, account.NewNotEnoughQuorumError(0, 0).Error())
 				al.AssertExpectations(t)
 				mf.AssertNumberOfCalls(t, "Last", 0)
 				mc.AssertNumberOfCalls(t, "Create", 0)
@@ -138,6 +143,7 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 				IsDebit:   false,
 				Amount:    1000,
 			},
+			conflict:     nil,
 			lstMov:       nil,
 			lstError:     errors.New("database error"),
 			lockReturn:   nil,
@@ -160,6 +166,7 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 				IsDebit:   false,
 				Amount:    1000,
 			},
+			conflict:     nil,
 			lstMov:       nil,
 			lstError:     nil,
 			lockReturn:   nil,
@@ -179,19 +186,22 @@ func (lts *LedgerTestSuite) TestCreateMovement() {
 		lc.On("Lock", test.accountID).Return(test.lockReturn)
 		lc.On("Unlock", test.accountID).Return(test.unlockReturn).Times(1)
 
-		mf := &mock.MovementFinder{}
-		mf.On("Last", test.accountID).Return(test.lstMov, test.lstError)
+		mFinder := &mock.MovementFinder{}
+		mFinder.On("Last", test.accountID).Return(test.lstMov, test.lstError)
 
-		mc := &mock.MovementCreator{}
-		mc.On("Create", testifyMock.Anything).Return(test.createError)
+		mCreator := &mock.MovementCreator{}
+		mCreator.On("Create", testifyMock.Anything).Return(test.createError)
+
+		mFetcher := &mock.MovementFetcher{}
+		mFetcher.On("Fetch", test.accountID).Return(test.conflict, test.lstError)
 
 		clis := make([]*account.LockerClient, 0)
 		clis = append(clis, account.NewLockerClient(lc))
 		al := account.NewLocker(clis)
 
-		l := New(al, mf, mc)
+		l := New(al, mFinder, mCreator, mFetcher)
 		result := l.CreateMovement(context.Background(), *test.newMov)
-		test.asserts(lts.T(), lc, mf, mc, result)
+		test.asserts(lts.T(), lc, mFinder, mCreator, result)
 
 		// Unlock should ALWAYS run!
 		lc.AssertNumberOfCalls(lts.T(), "Unlock", 1)

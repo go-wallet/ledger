@@ -41,6 +41,7 @@ func NewApplication() *Application {
 			locker,
 			mongoClient,
 			mongoClient,
+			mongoClient,
 		),
 	}
 }

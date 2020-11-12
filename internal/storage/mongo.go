@@ -39,7 +39,7 @@ func NewMongoClient(collection *mongo.Collection) *MongoClient {
 
 func initCollection(collection *mongo.Collection) {
 	collection.Indexes().CreateOne(context.Background(), mongo.IndexModel{
-		Keys:    bson.M{"account_id": 1, "previous_balance": 1},
+		Keys:    bson.M{"previous_movement": 1},
 		Options: options.Index().SetUnique(true),
 	})
 
@@ -126,4 +126,30 @@ func (cli *MongoClient) Create(ctx context.Context, m *movement.Movement) error 
 	_, err := cli.collection.InsertOne(timeout, doc)
 
 	return err
+}
+
+func (cli *MongoClient) Fetch(ctx context.Context, id movement.ID) (*movement.Movement, error) {
+	timeout, cancel := context.WithTimeout(ctx, DefaultTimeout)
+	defer cancel()
+
+	result := &movementDocument{}
+	err := cli.collection.FindOne(timeout, bson.M{"_id": id}, options.FindOne()).Decode(&result)
+	if err != nil && !errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, err
+	}
+
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+
+	cAt, _ := time.Parse(time.RFC3339, result.CreatedAt)
+	return &movement.Movement{
+		ID:               movement.ID(result.ID),
+		AccountID:        account.ID(result.AccountID),
+		IsDebit:          result.IsDebit,
+		Amount:           result.Amount,
+		PreviousMovement: movement.ID(result.PreviousMovement),
+		PreviousBalance:  result.PreviousBalance,
+		CreatedAt:        cAt,
+	}, nil
 }

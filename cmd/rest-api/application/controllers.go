@@ -19,16 +19,12 @@ func findMomentsController(mf movement.FindableByAccount) echo.HandlerFunc {
 			return ctx.JSON(http.StatusBadRequest, err.Error())
 		}
 		if req.AccountID == "" {
-			return ctx.JSON(http.StatusBadRequest, struct {
-				Error string `json:"error"`
-			}{
-				Error: "You need to provide an account_id via query string",
-			})
+			return Error(ctx, NewBadRequestError("You need to provide an account_id via query string"))
 		}
 
 		movements, err := mf.All(ctx.Request().Context(), account.ID(req.AccountID))
 		if err != nil {
-			return ctx.JSON(http.StatusNotFound, err.Error())
+			return Error(ctx, err)
 		}
 
 		result := &protocol.GetMovementsResponse{
@@ -37,6 +33,7 @@ func findMomentsController(mf movement.FindableByAccount) echo.HandlerFunc {
 		for _, mov := range movements {
 			result.Data = append(result.Data, protocol.ResponseFromMovement(mov))
 		}
+
 		return ctx.JSON(http.StatusOK, result)
 	}
 }
@@ -45,7 +42,7 @@ func createMovementController(ledger *ledger.Ledger) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
 		req := &protocol.CreateMovementRequest{}
 		if err := ctx.Bind(req); err != nil {
-			return ctx.JSON(http.StatusUnprocessableEntity, err.Error())
+			return Error(ctx, NewInvalidRequestDataError(err.Error()))
 		}
 
 		entry := movement.Movement{
@@ -57,7 +54,7 @@ func createMovementController(ledger *ledger.Ledger) echo.HandlerFunc {
 		}
 
 		if err := ledger.CreateMovement(ctx.Request().Context(), entry); err != nil {
-			return ctx.JSON(http.StatusInternalServerError, err.Error())
+			return Error(ctx, err)
 		}
 
 		return ctx.JSON(http.StatusCreated, nil)
